@@ -1,0 +1,5 @@
+# CPU prototype (PC, cloud, or Raspberry Pi 5 without the AI HAT)
+numpy>=1.26
+opencv-python>=4.9
+onnxruntime>=1.17
+mediapipe>=0.10.14

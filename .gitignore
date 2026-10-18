@@ -1,0 +1,20 @@
+# model weights are downloaded by download_models.sh (and some carry non-commercial licences)
+dms/models/
+*.onnx
+*.task
+*.hef
+# biometric data and recordings never go into git
+gallery.npz
+*.mp4
+*.mov
+*.MOV
+*.avi
+*.jpg
+*.png
+results/
+dms/events/
+# python / misc
+__pycache__/
+*.pyc
+*.zip
+.DS_Store
