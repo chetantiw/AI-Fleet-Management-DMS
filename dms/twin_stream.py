@@ -102,6 +102,8 @@ def main():
     arm = {k: v.copy() for k, v in DEFAULT.items()}
     last_good = -9.0
     ST = np.array([x["t"] for x in st])
+    OBJ, KPS = d["obj"], d["kps"]
+    votes = []
     frames = []
     hs = np.array([np.nan] * 3)
     for k in range(len(TT)):
@@ -137,13 +139,20 @@ def main():
         lean = [0.0, 0.0]
         if good_sh[k]:
             lean = [-(sh_mid[k, 0] - mid0[0]) / sw0, (sh_mid[k, 1] - mid0[1]) / sw0]
-        # which hand is raised (for phone / drinking): the wrist nearer the nose in the image
-        hand = ""
+        # which hand is raised (for phone / drinking): vote per frame, settled per episode below
+        vote = 0
         if s["mouth"] or s["ear"] or s["phone"]:
-            n = IMG[k, i_n, :2]
-            dl = np.linalg.norm(IMG[k, i_lw, :2] - n) if IMG[k, i_lw, 2] > 0.3 else 1e9
-            dr = np.linalg.norm(IMG[k, i_rw, :2] - n) if IMG[k, i_rw, 2] > 0.3 else 1e9
-            hand = "L" if dl <= dr else "R"
+            ob = OBJ[j, 0]
+            nose_x = KPS[j, 2, 0]
+            if not np.isnan(ob[0]) and not np.isnan(nose_x):
+                vote = 2 if (ob[0] + ob[2]) / 2 > nose_x else -2      # phone box: image right = driver's left
+            else:
+                n = IMG[k, i_n, :2]
+                dl = np.linalg.norm(IMG[k, i_lw, :2] - n) if IMG[k, i_lw, 2] > 0.3 else 1e9
+                dr = np.linalg.norm(IMG[k, i_rw, :2] - n) if IMG[k, i_rw, 2] > 0.3 else 1e9
+                vote = 1 if dl < dr else -1 if dr < dl else 0
+        votes.append(vote)
+        hand = ""
         frames.append(dict(
             t=round(float(t), 1), yaw=round(-float(hv[1]), 1), pitch=round(float(hv[0]), 1),
             roll=round(-float(hv[2]), 1), eyeL=round(eL, 2), eyeR=round(eR, 2),
@@ -153,6 +162,20 @@ def main():
             hidden=int(s["hidden"]), phone=int(s["phone"]), mouth=int(s["mouth"]), ear=int(s["ear"]),
             belt={True: 1, False: 0, None: -1}[s["belt"]], perclos=s["perclos"], hand=hand,
             alert=s["alert"], ev=s["ev"], driver=s["driver"]))
+    # one hand per episode (a run of phone / hand-at-face frames, gaps under 1 s bridged)
+    active = [bool(f["phone"] or f["mouth"] or f["ear"]) for f in frames]
+    k = 0
+    while k < len(frames):
+        if not active[k]:
+            k += 1
+            continue
+        e = k
+        while e + 1 < len(frames) and (active[e + 1] or any(active[e + 1:e + 11])):
+            e += 1
+        side = "L" if sum(votes[k:e + 1]) > 0 else "R"
+        for q in range(k, e + 1):
+            frames[q]["hand"] = side
+        k = e + 1
     meta = dict(fps=10, frames=len(frames), driver_normal=dict(head_deg=r2(h0), blink=round(float(b0), 3)),
                 bytes_per_frame=int(np.mean([len(json.dumps(f, separators=(",", ":"))) for f in frames])))
     with open(out, "w") as fh:

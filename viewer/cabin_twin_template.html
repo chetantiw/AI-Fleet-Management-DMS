@@ -565,6 +565,7 @@ pre.tele { margin: 0; font: 12px/1.5 var(--mono); white-space: pre-wrap; word-br
     renderAt: (s) => { t = s; for (let i = 0; i < 3; i++) show(0.034, false); renderer.render(scene, cam); },
     stepRender: (s, dt) => { t = s; show(dt, false); renderer.render(scene, cam); },
     setCam,
+    fast: () => { renderer.shadowMap.enabled = false; renderer.setPixelRatio(1); resize(); scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); },
   };
 
   loadClip(clips[0]); resize(); requestAnimationFrame(loop);
