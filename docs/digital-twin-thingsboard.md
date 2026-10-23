@@ -23,9 +23,20 @@ Telemetry sent per frame (device topic `v1/devices/me/telemetry`):
 Twin streams of the 13 Oct bus videos (`v0112_twin.json`, `v0110_twin.json`, `v0107_twin.json`) are
 NOT in git; Chetan copies them to the server (e.g. `~/dms-twin/`).
 
+## Relation to the ThingsBoard integration on `main`
+
+`main` already has the vehicle-to-ThingsBoard link from the "ThingsBoard CE telematics and live
+streaming" work (`docs/thingsboard_integration.md`): `fleet_agent.py` (position, driver state every 5 s,
+alerts with snapshots, offline outbox, RPC), `server/thingsboard/tb_setup.py` (rule chain → alarms,
+device profile, vehicle devices, "Fleet DMS" dashboard) and on-demand live video through MediaMTX.
+This branch is rebased on it. Use those vehicle devices for the twin rather than a separate one when
+they exist: the `twin` key simply joins their telemetry. `fleet_agent.py` does not send `twin` yet —
+until it does, `twin_publish.py` stands in for it with the vehicle's token.
+
 ## The job
 
-Add the driver twin to the **existing fleet-management dashboard** without disturbing it.
+Add the driver twin to the **existing fleet-management dashboard** (possibly the "Fleet DMS" dashboard
+made by `tb_setup.py` — ask Chetan which) without disturbing it.
 
 1. **Find the setup.** ThingsBoard URL (often `http://localhost:8080`), tenant-admin login from the
    environment variables `TB_URL`, `TB_USER`, `TB_PASS` — ask Chetan to export them; never write
