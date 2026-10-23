@@ -45,6 +45,7 @@ def main():
     step = max(int(round(src / a.fps)), 1)
     R = dict(t=[], box=[], kps=[], fscore=[], lm=[], bs=[], obj=[])
     i = k = 0
+    frame_hw = (0, 0)
     while True:
         if i % step:
             if not cap.grab():
@@ -54,6 +55,7 @@ def main():
         ok, frame = cap.read()
         if not ok:
             break
+        frame_hw = frame.shape[:2]
         t = i / src
         i += 1
         faces = fd(frame)
@@ -91,7 +93,7 @@ def main():
         R["t"].append(t)
     frs.DET_SCORE = fd_thr
     np.savez(a.out, **{n: np.array(v, float) for n, v in R.items()}, keep=np.array(KEEP),
-             bs_names=np.array(BS_NAMES), frame_hw=np.array(frame.shape[:2] if 'frame' in dir() else (0, 0)))
+             bs_names=np.array(BS_NAMES), frame_hw=np.array(frame_hw))
     print(a.out, len(R["t"]), "frames")
 
 
