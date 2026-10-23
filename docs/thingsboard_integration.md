@@ -21,6 +21,15 @@ operator's NAT with no public address, so the server can never connect in to the
 
 ## 1. Server setup (once)
 
+Quickest: one script does all of the below, generates a video password per vehicle and writes a
+ready `device.json` per vehicle (it asks for the ThingsBoard tenant admin login):
+
+```bash
+sudo ./server/install_server.sh iot.mutechautomation.com VEH-102 VEH-103
+```
+
+Step by step:
+
 On the ThingsBoard server:
 
 ```bash

@@ -25,3 +25,4 @@ __pycache__/
 *.pyc
 *.zip
 .DS_Store
+server/vehicles/
