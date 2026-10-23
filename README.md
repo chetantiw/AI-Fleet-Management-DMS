@@ -78,6 +78,21 @@ camera video.
 - `viewer/cabin_twin_template.html` + `build_viewer.py` — three.js viewer: generic driver in a bus cabin, alert timeline,
   optional side-by-side local video
 
+### Try it in ThingsBoard (before the hardware exists)
+
+1. **Device**: Entities → Devices → + → name it e.g. `DMS-Twin-Test`; open it and copy the access token.
+2. **Widget**: Resources → Widgets library → Widgets → + → *Import widget* → `viewer/thingsboard/cabin_twin_widget.json`
+   (or create a "Latest values" widget and paste `widget.html` / `widget.css` / `widget.js`,
+   adding the two three.js resource URLs from the JSON).
+3. **Dashboard**: add the *Cabin driver twin* widget, datasource = that device, key = `twin`.
+4. **Stream a recording** (from any PC that can reach the server):
+   `python3 dms/twin_publish.py results/v0112_twin.json --host <server> --token <token> --start 160`
+   (MQTT on 1883 needs `pip install paho-mqtt`; add `--http --host <server>:8080` to use the HTTP API instead.)
+
+The publisher also sends flat keys `dms_alert`, `dms_belt`, `dms_phone`, `dms_eyes_closed`, `dms_perclos`, `driver`
+for ordinary widgets, rule chains and alarms. At 10 frames/s a tenant profile with transport rate limits must
+allow ≥ 20 messages/s per device, or send `--rate 5`.
+
 Extra model: `models/pose_landmarker_heavy.task` (fetched by `download_models.sh`).
 
 ## Files
