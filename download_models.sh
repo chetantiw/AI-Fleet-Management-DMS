@@ -15,6 +15,9 @@ curl -fL -z face_landmarker.task -o face_landmarker.task \
   https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
 curl -fL -z hand_landmarker.task -o hand_landmarker.task \
   https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+# Upper-body pose for the digital twin (MediaPipe, Apache-2.0)
+curl -fL -z pose_landmarker_heavy.task -o pose_landmarker_heavy.task \
+  https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task
 # Phone / bottle / cup detection (YOLOX, Apache-2.0, COCO classes)
 for m in yolox_s yolox_tiny; do
   [ -f $m.onnx ] || curl -fL -o $m.onnx https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/$m.onnx

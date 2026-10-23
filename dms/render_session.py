@@ -13,6 +13,7 @@ their own calibration (head position, normal eye openness, face size).
 """
 import argparse
 import csv
+import json
 import os
 
 import cv2
@@ -155,6 +156,14 @@ def run_session(segments, gallery=None):
                 cv2.rectangle(frame, (0, frame.shape[0] - 90), (frame.shape[1], frame.shape[0]), (0, 0, 255), -1)
                 cv2.putText(frame, banner[:46], (16, frame.shape[0] - 28), cv2.FONT_HERSHEY_SIMPLEX, 1.5,
                             (255, 255, 255), 4)
+            # compact per-frame state for the digital twin (twin_stream.py)
+            status["twin_state"] = dict(
+                t=round(t, 2), face=bool(st.get("face")), facing=bool(st.get("facing")),
+                closed=bool(st.get("closed")), hidden=bool(st.get("eyes_hidden")),
+                mouth=bool(st.get("hand_mouth")), ear=bool(st.get("hand_ear")), phone=bool(ps),
+                belt=st.get("belt") if st.get("belt") in (True, False) else None,
+                perclos=round(float(np.nan_to_num(st.get("perclos", 0) or 0)), 3), driver=ident.current or "",
+                ev=[e for e, _ in evs], alert=banner if alert else "")
             yield t, frame, evs, status
         offset += last_t + 0.1
 
@@ -165,9 +174,13 @@ def main():
     ap.add_argument("--gallery")
     ap.add_argument("--out", required=True)
     ap.add_argument("--csv", required=True)
+    ap.add_argument("--state", help="also write the per-frame DMS state (JSON lines) for the digital twin")
     a = ap.parse_args()
     writer, events, size = None, [], None
+    state_fh = open(a.state, "w") if a.state else None
     for t, frame, evs, status in run_session(a.segments, a.gallery):
+        if state_fh:
+            state_fh.write(json.dumps(status["twin_state"]) + "\n")
         for e, info in evs:
             events.append((t, e, info, status["driver"]))
         if size is None:
@@ -177,6 +190,8 @@ def main():
             writer = cv2.VideoWriter(a.out, cv2.VideoWriter_fourcc(*"mp4v"), 10, size)
         writer.write(small)
     writer.release()
+    if state_fh:
+        state_fh.close()
     with open(a.csv, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["session_time", "seconds", "event", "details", "current_driver"])

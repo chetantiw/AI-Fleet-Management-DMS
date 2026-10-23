@@ -64,6 +64,22 @@ cd server/mediamtx && cp vehicles.example.json vehicles.json && docker compose u
 cd dms && python3 fleet_agent.py --config device.json --replay bus.mov:results/cache   # vehicle side
 ```
 
+## Digital twin (3-D driver replay)
+
+`process.py VIDEO --twin` also writes `results/<name>_twin.json`: one small record per frame (10 fps,
+about 300 bytes) with the driver's head angles, eyelids, mouth, shoulder/elbow/wrist positions and the
+DMS state (phone, hand at mouth/ear, seat belt, PERCLOS, current alert). These are the same keys the
+device will publish to ThingsBoard over MQTT, so the fleet dashboard can show a 3-D driver instead of
+camera video.
+
+- `twin_extract.py` — upper-body pose (MediaPipe Pose, heavy model, Apache-2.0) on a crop around the driver's face
+- `twin_stream.py` — merges head pose, eye/mouth scores, arm points and the per-frame DMS state
+  (`render_session.py --state`) into the telemetry stream, relative to this driver's own normal
+- `viewer/cabin_twin_template.html` + `build_viewer.py` — three.js viewer: generic driver in a bus cabin, alert timeline,
+  optional side-by-side local video
+
+Extra model: `models/pose_landmarker_heavy.task` (fetched by `download_models.sh`).
+
 ## Files
 
 | File | Purpose |

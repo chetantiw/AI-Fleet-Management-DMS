@@ -35,6 +35,8 @@ def main():
     ap.add_argument("video")
     ap.add_argument("--gallery", default=os.path.join(HERE, "gallery.npz"))
     ap.add_argument("--out", default="results")
+    ap.add_argument("--twin", action="store_true",
+                    help="also write the digital-twin stream (<name>_twin.json) for the 3-D viewer")
     a = ap.parse_args()
     video = os.path.abspath(a.video)
     name = os.path.splitext(os.path.basename(video))[0]
@@ -48,9 +50,12 @@ def main():
         if run(["extract.py", video, base + ".npz"], base + ".extract.log").wait():
             sys.exit(f"extract failed, see {base}.extract.log")
     jobs = []
-    for script, suffix, label in (("hands_extract.py", ".hands.npy", "2/5 hands"),
-                                  ("belt_extract.py", ".belt.npy", "3/5 seat belt"),
-                                  ("faces_extract.py", ".faces.npz", "4/5 face identity")):
+    steps = [("hands_extract.py", ".hands.npy", "2/5 hands"),
+             ("belt_extract.py", ".belt.npy", "3/5 seat belt"),
+             ("faces_extract.py", ".faces.npz", "4/5 face identity")]
+    if a.twin:
+        steps.append(("twin_extract.py", ".twin.npz", "twin: body pose"))
+    for script, suffix, label in steps:
         if not os.path.exists(base + suffix):
             print(label, "...", flush=True)
             jobs.append(run([script, video, base + ".npz", base + suffix], base + suffix + ".log"))
@@ -66,12 +71,19 @@ def main():
     out_mp4 = os.path.join(a.out, name + "_annotated.mp4")
     out_csv = os.path.join(a.out, name + "_events.csv")
     cmd = ["render_session.py", "--out", out_mp4, "--csv", out_csv, f"{video}:{cache}"]
+    if a.twin:
+        cmd[1:1] = ["--state", base + ".state.jsonl"]
     if os.path.exists(a.gallery):
         cmd[1:1] = ["--gallery", os.path.abspath(a.gallery)]
     else:
         print(f"(no gallery at {a.gallery}: every driver will be reported as Unknown #n)")
     if run(cmd, base + ".render.log").wait():
         sys.exit(f"render failed, see {base}.render.log")
+    if a.twin:
+        out_twin = os.path.join(a.out, name + "_twin.json")
+        if run(["twin_stream.py", base, base + ".state.jsonl", out_twin], base + ".twin.log").wait():
+            sys.exit(f"twin stream failed, see {base}.twin.log")
+        print("digital twin stream ->", out_twin)
     print(f"done in {(time.time() - t0) / 60:.1f} min -> {out_mp4}, {out_csv}")
 
 
