@@ -65,27 +65,22 @@ def segment_frames(video, base):
         k += 1
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("segments", nargs="+", help="video.mov:cache_dir")
-    ap.add_argument("--gallery")
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--csv", required=True)
-    a = ap.parse_args()
-    gal = frs.Gallery(a.gallery) if a.gallery else None
+def run_session(segments, gallery=None):
+    """Replay `segments` ("video:cache_dir") as one session. Yields, for each processed frame (10 fps):
+    (t, annotated_frame, events, status) where events is a list of (event, details) raised on this
+    frame and status is the current driver state (for telemetry)."""
+    gal = frs.Gallery(gallery) if gallery else None
     ident = identity.DriverIdentity(gal)
     eng = engine2.Engine2()
-    writer, events, banner, until, offset = None, [], "", -1, 0.0
-    eye_hist, size = [], None
-    for seg in a.segments:
+    banner, until, offset = "", -1, 0.0
+    eye_hist = []
+    for seg in segments:
         video, cache = seg.rsplit(":", 1)
         base = os.path.join(cache, os.path.splitext(os.path.basename(video))[0])
         last_t = 0.0
         for lt, frame, m in segment_frames(video, base):
             t = offset + lt
             last_t = lt
-            if size is None:
-                size = (frame.shape[1] // 2, frame.shape[0] // 2)
             b, kp, lm = m["box"], m["kps"], m["lm"]
             face = not np.isnan(b[0])
             # ---- identity ----
@@ -120,7 +115,6 @@ def main():
             evs += [(e, f"{lab} ({sim:.2f})" if e != "DRIVER_CHANGED" else lab) for e, lab, sim in id_events]
             st = eng.state
             for e, info in evs:
-                events.append((t, e, info, ident.current or ""))
                 banner = e.replace("_", " ") + (f": {info}" if info else "")
                 until = t + 3
             # ---- overlay ----
@@ -134,14 +128,21 @@ def main():
                 cv2.rectangle(frame, (int(o[0]), int(o[1])), (int(o[2]), int(o[3])), (0, 165, 255), 4)
             who = ident.current or ("identifying..." if face else "-")
             lines = [f"Driver: {who}"]
+            status = dict(driver=ident.current or "", driver_status=(
+                "none" if ident.current is None else "unknown" if ident.current.startswith("Unknown")
+                else "verified"), face=bool(st.get("face")))
             if st.get("face"):
                 head = "facing road" if st["facing"] else "HEAD TURNED"
                 eyes = ("hidden (sunglasses)" if st["eyes_hidden"] else "n/a (turned)" if not st["facing"] else
                         "CLOSED" if st["closed"] else "open" if not np.isnan(st["closure"]) else "n/a")
                 hands = "at mouth" if st["hand_mouth"] else "at ear" if st["hand_ear"] else "-"
+                belt = "ON" if st.get("belt") else "OFF" if st.get("belt") is False else "checking"
                 lines += [f"Head: {head}", f"Eyes: {eyes}", f"Hand: {hands}   Phone: {'yes' if ps else '-'}",
-                          f"Tiredness (PERCLOS 60s): {st['perclos'] * 100:.0f}%",
-                          "Seat belt: " + ("ON" if st.get("belt") else "OFF" if st.get("belt") is False else "checking")]
+                          f"Tiredness (PERCLOS 60s): {st['perclos'] * 100:.0f}%", "Seat belt: " + belt]
+                status.update(head="facing" if st["facing"] else "turned",
+                              eyes=eyes.split(" ")[0].lower(), hand=hands.replace("at ", "") if hands != "-" else "none",
+                              phone=bool(ps), perclos=round(float(st["perclos"]) * 100, 1),
+                              seatbelt={"ON": "on", "OFF": "off"}.get(belt, "unknown"))
             else:
                 lines += ["No driver face"]
             cv2.rectangle(frame, (0, 0), (frame.shape[1], 40 + 46 * len(lines)), (0, 0, 0), -1)
@@ -154,11 +155,27 @@ def main():
                 cv2.rectangle(frame, (0, frame.shape[0] - 90), (frame.shape[1], frame.shape[0]), (0, 0, 255), -1)
                 cv2.putText(frame, banner[:46], (16, frame.shape[0] - 28), cv2.FONT_HERSHEY_SIMPLEX, 1.5,
                             (255, 255, 255), 4)
-            small = cv2.resize(frame, size)
-            if writer is None:
-                writer = cv2.VideoWriter(a.out, cv2.VideoWriter_fourcc(*"mp4v"), 10, size)
-            writer.write(small)
+            yield t, frame, evs, status
         offset += last_t + 0.1
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("segments", nargs="+", help="video.mov:cache_dir")
+    ap.add_argument("--gallery")
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--csv", required=True)
+    a = ap.parse_args()
+    writer, events, size = None, [], None
+    for t, frame, evs, status in run_session(a.segments, a.gallery):
+        for e, info in evs:
+            events.append((t, e, info, status["driver"]))
+        if size is None:
+            size = (frame.shape[1] // 2, frame.shape[0] // 2)
+        small = cv2.resize(frame, size)
+        if writer is None:
+            writer = cv2.VideoWriter(a.out, cv2.VideoWriter_fourcc(*"mp4v"), 10, size)
+        writer.write(small)
     writer.release()
     with open(a.csv, "w", newline="") as fh:
         w = csv.writer(fh)

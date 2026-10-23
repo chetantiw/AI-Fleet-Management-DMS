@@ -1,0 +1,28 @@
+# Media server for live video + its login check, next to ThingsBoard CE on the same Linux server.
+#
+#   cd server/mediamtx
+#   cp vehicles.example.json vehicles.json      # one line per vehicle: "veh-102": "<password>"
+#   docker compose up -d
+#
+# Host networking: WebRTC needs the real server address and UDP 8189, and stream_auth must reach
+# ThingsBoard on 127.0.0.1:8080. Change --tb below if ThingsBoard listens elsewhere.
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.2
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+      - ./recordings:/recordings
+    depends_on: [stream-auth]
+
+  stream-auth:
+    image: python:3.12-slim
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    volumes:
+      - ./stream_auth.py:/app/stream_auth.py:ro
+      - ./vehicles.json:/app/vehicles.json:ro
+    command: ["python3", "stream_auth.py", "--tb", "http://127.0.0.1:8080", "--vehicles", "vehicles.json",
+              "--port", "9100"]

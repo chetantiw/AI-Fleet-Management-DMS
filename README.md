@@ -49,6 +49,21 @@ python3 process.py /path/to/cabin_video.mov --out results/
 Several videos can be replayed as one session (driver changes across clips):
 `python3 render_session.py --gallery gallery.npz --out s.mp4 --csv s.csv a.mov:cache b.mov:cache`
 
+## Fleet platform link (ThingsBoard CE) and live video
+
+`dms/fleet_agent.py` sends position, driver state, device health and every alert (with a snapshot)
+to ThingsBoard over MQTT, buffering on the device when there is no network, and streams live video
+to a MediaMTX media server on demand from the dashboard. `server/` sets up ThingsBoard (rule chain →
+alarms, device profile, "Fleet DMS" dashboard) and the media server.
+Setup, message formats and test results: **[docs/thingsboard_integration.md](docs/thingsboard_integration.md)**.
+
+```bash
+python3 server/thingsboard/tb_setup.py --user <tenant admin> --password <pw> --vehicle VEH-102 \
+    --stream-view http://<server>:8889/veh-102/          # on the server, prints the device token
+cd server/mediamtx && cp vehicles.example.json vehicles.json && docker compose up -d
+cd dms && python3 fleet_agent.py --config device.json --replay bus.mov:results/cache   # vehicle side
+```
+
 ## Files
 
 | File | Purpose |
@@ -64,6 +79,12 @@ Several videos can be replayed as one session (driver changes across clips):
 | `dms/eval_dmd.py`, `eval_phone_dmd.py` | Scoring against the public DMD driver dataset |
 | `dms/run_all.py`, `render_v2.py` | Earlier pipelines (v1, v2), kept for reference |
 | `dms/setup_pi_hailo.sh` | Raspberry Pi 5 + Hailo-8L setup (for when the hardware arrives) |
+| `dms/fleet_agent.py` | In-vehicle agent: telemetry, events, RPC, live video; replays recordings until the camera is fitted |
+| `dms/tb_link.py` | ThingsBoard MQTT link with offline outbox (SQLite) |
+| `dms/streamer.py` | On-demand H.264 push to the media server (ffmpeg) |
+| `dms/gnss.py`, `dms/health.py` | GNSS (NMEA) reader + demo route; device health |
+| `server/thingsboard/tb_setup.py` | Creates rule chain, device profile, devices and the Fleet DMS dashboard |
+| `server/mediamtx/` | Media server config, ThingsBoard-login check for viewers, docker compose, nginx snippet |
 | `docs/results.md` | Test results so far |
 
 ## Data and licences

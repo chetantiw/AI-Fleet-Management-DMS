@@ -13,6 +13,13 @@ gallery.npz
 *.png
 results/
 dms/events/
+# device / server secrets and local state
+device.json
+vehicles.json
+*.db
+*.db-wal
+*.db-shm
+server/mediamtx/recordings/
 # python / misc
 __pycache__/
 *.pyc

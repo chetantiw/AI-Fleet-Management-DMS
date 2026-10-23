@@ -1,0 +1,72 @@
+# MediaMTX media server for the fleet DMS live video (runs next to ThingsBoard CE).
+#
+# Vehicles PUSH their camera stream here (RTSP over TCP, port 8554) when an operator presses
+# "Start live video" on the ThingsBoard dashboard. Browsers watch it with WebRTC (port 8889,
+# ~0.5 s delay) or HLS (port 8888, 2-5 s delay, works through any proxy/firewall).
+#
+# Stream path = vehicle id, e.g.  rtsp://<server>:8554/veh-102
+#                                 http://<server>:8889/veh-102/        (WebRTC player page)
+#                                 http://<server>:8888/veh-102/        (HLS player page)
+#
+# Ports to open on the server firewall:
+#   8554/tcp  RTSP publish from vehicles
+#   8889/tcp  WebRTC player + signalling   (or proxy it through nginx, see README)
+#   8189/udp  WebRTC media
+#   8888/tcp  HLS                          (optional, or proxy it)
+#
+# Vehicle passwords live in vehicles.json (read by stream_auth.py), not in this file.
+
+logLevel: info
+
+# ---- who may do what ----
+# Every publish / watch request is checked by stream_auth.py (same server, port 9100):
+#   publish: user = vehicle path, password from vehicles.json (one password per vehicle)
+#   watch:   ?token=<ThingsBoard login token>, added automatically by the Fleet DMS dashboard,
+#            so only users logged in to ThingsBoard (and, for customer users, only their own
+#            vehicles) can watch.
+authMethod: http
+authHTTPAddress: http://127.0.0.1:9100/auth
+authHTTPExclude:
+  - action: api
+  - action: metrics
+  - action: pprof
+
+# ---- protocols ----
+rtsp: true
+rtspTransports: [tcp]          # vehicles on 4G: TCP only (UDP is unreliable through carrier NAT)
+rtspAddress: :8554
+rtmp: false
+srt: true                      # optional: SRT (port 8890/udp) copes better with lossy 4G links
+srtAddress: :8890
+
+webrtc: true
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189   # fallback when UDP is blocked at the operator's office
+# The server's public IP or DNS name, so browsers outside the LAN can reach the media port:
+webrtcAdditionalHosts: []      # e.g. [iot.example.com]
+webrtcAllowOrigins: ["*"]
+
+hls: true
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsAllowOrigins: ["*"]
+
+moq: false
+api: true
+apiAddress: 127.0.0.1:9997   # local only
+playback: false
+
+# ---- paths ----
+pathDefaults:
+  source: publisher
+  # Keep a copy of every live session on the server for incident review (optional).
+  record: false
+  recordPath: ./recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordSegmentDuration: 10m
+  recordDeleteAfter: 7d
+
+paths:
+  "~^veh-[a-z0-9-]+$":
+    source: publisher

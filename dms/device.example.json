@@ -1,0 +1,18 @@
+{
+  "vehicle_id": "VEH-102",
+  "thingsboard": {
+    "host": "iot.example.com",
+    "port": 1883,
+    "tls": false,
+    "token": "PASTE-DEVICE-ACCESS-TOKEN"
+  },
+  "stream": {
+    "path": "veh-102",
+    "publish_url": "rtsp://veh-102:CHANGE-ME-veh-102@iot.example.com:8554/veh-102",
+    "view_url": "http://iot.example.com:8889/veh-102/",
+    "hls_url": "http://iot.example.com:8888/veh-102/"
+  },
+  "gnss": {"type": "demo", "speed_kmh": 32},
+  "settings": {"telemetry_interval_s": 5, "stream_max_minutes": 10, "stream_bitrate_k": 400},
+  "outbox": "tb_outbox.db"
+}
