@@ -46,6 +46,9 @@ def load_config(path):
     for k in ("models_dir", "data_dir", "gallery"):
         if k in cfg and not os.path.isabs(cfg[k]):
             cfg[k] = os.path.normpath(os.path.join(base, cfg[k]))
+    dc = cfg.get("fleet", {}).get("device_config")
+    if dc and not os.path.isabs(dc):
+        cfg["fleet"]["device_config"] = os.path.normpath(os.path.join(base, dc))
     return cfg
 
 
@@ -69,28 +72,42 @@ class Buzzer:
         threading.Thread(target=run, daemon=True).start()
 
 
-class Mqtt:
-    """Optional: publish each event as JSON (e.g. ThingsBoard: topic v1/devices/me/telemetry,
-    username = device access token)."""
-    def __init__(self, cfg):
-        self.c = None
-        if not cfg or not cfg.get("enabled"):
-            return
-        try:
-            import paho.mqtt.client as mqtt
-            c = mqtt.Client()
-            if cfg.get("username"):
-                c.username_pw_set(cfg["username"], cfg.get("password"))
-            c.connect_async(cfg["host"], int(cfg.get("port", 1883)))
-            c.loop_start()
-            self.c, self.topic = c, cfg.get("topic", "v1/devices/me/telemetry")
-        except Exception as e:
-            print(f"MQTT not available: {e}", flush=True)
+def start_fleet_agent(path, log):
+    """ThingsBoard link + on-demand live video (fleet_agent.py, docs/thingsboard_integration.md).
+    Off when device.json is missing."""
+    if not path or not os.path.exists(path):
+        log("fleet platform: off (no device.json; see docs/thingsboard_integration.md)")
+        return None
+    try:
+        import logging
+        import fleet_agent
+        from tb_link import load_config as tb_config
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s", datefmt="%H:%M:%S")
+        cfg = tb_config(path)
+        if not os.path.isabs(cfg.get("outbox", "tb_outbox.db")):
+            cfg["outbox"] = os.path.join(os.path.dirname(os.path.abspath(path)), cfg.get("outbox", "tb_outbox.db"))
+        agent = fleet_agent.Agent(cfg)
+        agent.start()
+        log(f"fleet platform: ThingsBoard {cfg['thingsboard'].get('host')} as {cfg.get('vehicle_id', '?')}")
+        return agent
+    except Exception as e:
+        log(f"fleet platform not started: {type(e).__name__}: {e}")
+        return None
 
-    def send(self, ev):
-        if self.c is not None:
-            self.c.publish(self.topic, json.dumps({"dms_event": ev["event"], "driver": ev["driver"],
-                                                   "details": ev["details"]}), qos=1)
+
+def driver_status(st, ident, phone_seen):
+    """Driver state for telemetry (same keys as render_session.run_session)."""
+    cur = ident.current
+    s = dict(driver=cur or "", driver_status="none" if cur is None else
+             "unknown" if cur.startswith("Unknown") else "verified", face=bool(st.get("face")))
+    if st.get("face"):
+        s.update(head="facing" if st["facing"] else "turned",
+                 eyes="hidden" if st["eyes_hidden"] else "n/a" if not st["facing"] else
+                 "closed" if st["closed"] else "open",
+                 hand="mouth" if st["hand_mouth"] else "ear" if st["hand_ear"] else "none",
+                 phone=bool(phone_seen), perclos=round(float(st["perclos"]) * 100, 1),
+                 seatbelt={True: "on", False: "off"}.get(st.get("belt"), "unknown"))
+    return s
 
 
 class Recorder:
@@ -165,7 +182,7 @@ def main():
         web = webview.LiveView(port)
         log(f"live view on http://<this-pi>:{port}/")
     buzzer = Buzzer(cfg.get("buzzer_gpio"))
-    mqtt = Mqtt(cfg.get("mqtt"))
+    agent = start_fleet_agent(cfg.get("fleet", {}).get("device_config"), log)
     rec_cfg = cfg.get("recording", {})
     rec = Recorder(os.path.join(data, "recordings"), rec_cfg.get("fps", 10), rec_cfg.get("segment_minutes", 5),
                    rec_cfg.get("max_gb", 20), data) if (a.record or rec_cfg.get("enabled")) else None
@@ -222,18 +239,20 @@ def main():
                 log(e, info, ident.current or "")
                 if web:
                     web.add_event(ev)
-                mqtt.send(ev)
                 if e in ALERTS_BEEP:
                     buzzer.beep(*ALERTS_BEEP[e])
 
             # ---- outputs ----
+            status = driver_status(st, ident, phone_seen)
             n += 1
             tick = time.monotonic()
             fps = 0.9 * fps + 0.1 / max(tick - last_tick, 1e-3) if n > 1 else 0.0
             last_tick = tick
             small = None
-            if rec is not None or web is not None:
+            if rec is not None or web is not None or agent is not None:
                 small = cv2.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
+            if agent is not None:
+                agent.frame(time.time(), small, evs, status)
             if rec is not None:
                 rec.write(small)
             if web is not None and tick - web_every >= 0.1:
@@ -241,6 +260,8 @@ def main():
                 ok, jpg = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 70])
                 web.publish(jpg.tobytes(), dict(
                     driver=ident.current or "-", fps=round(fps, 1),
+                    fleet_link=("connected" if agent.link.connected else f"offline, {agent.link.backlog} buffered")
+                    if agent is not None else "off",
                     head=("facing road" if st.get("facing") else "turned") if st.get("face") else "no face",
                     eyes=("hidden" if st.get("eyes_hidden") else "closed" if st.get("closed") else "open")
                     if st.get("face") else "-",
@@ -263,6 +284,8 @@ def main():
             rec.close()
         if web:
             web.close()
+        if agent is not None:
+            agent.close()
         log(f"stopped after {n} frames")
 
 

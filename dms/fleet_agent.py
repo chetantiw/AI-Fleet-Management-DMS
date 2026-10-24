@@ -60,7 +60,7 @@ class Agent:
                                  max_minutes=self.s["stream_max_minutes"]) if st.get("publish_url") else None
         g = cfg.get("gnss", {"type": "demo"})
         self.gps = gnss.NmeaGnss(g["port"], g.get("baud", 9600)) if g.get("type") == "nmea" else \
-            gnss.RouteReplay(speed_kmh=g.get("speed_kmh", 32))
+            gnss.NoGnss() if g.get("type") == "none" else gnss.RouteReplay(speed_kmh=g.get("speed_kmh", 32))
         self.last_tel = self.last_health = 0.0
         self.last_status = {}
         self.last_frame = None
@@ -111,7 +111,7 @@ class Agent:
             self.link.telemetry(h, ts=t_wall)
 
     def _speed_events(self, t, pos, status):
-        fast = pos.get("speed", 0) > self.s["overspeed_kmh"]
+        fast = (pos.get("speed") or 0) > self.s["overspeed_kmh"]
         if fast and not self.speeding:
             self.link.event("OVERSPEED", ts=t, driver=status.get("driver", ""),
                             details=f"{pos['speed']:.0f} km/h", latitude=pos.get("latitude"),

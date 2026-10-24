@@ -52,6 +52,12 @@ class RouteReplay:
             s -= d
 
 
+class NoGnss:
+    """No receiver fitted: report no fix (never invent a position on a real vehicle)."""
+    def fix(self, t=None):
+        return {"gps_fix": False}
+
+
 def _deg(v, hemi):
     if not v:
         return None
