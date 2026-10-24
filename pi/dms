@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Short commands for the DMS:  dms run | dms drivers ... | dms start | dms stop | dms status | dms logs
+APP="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+PY="$HOME/dms-venv/bin/python"
+case "${1:-}" in
+  run)      shift; exec "$PY" "$APP/dms/app.py" "$@" ;;
+  drivers)  shift; exec "$PY" "$APP/dms/drivers.py" "$@" ;;
+  process)  shift; exec "$PY" "$APP/dms/process.py" "$@" ;;
+  selftest) shift; exec "$PY" "$APP/dms/selftest.py" "$@" ;;
+  start)    sudo systemctl start dms ;;
+  stop)     sudo systemctl stop dms ;;
+  enable)   sudo systemctl enable --now dms ;;
+  disable)  sudo systemctl disable --now dms ;;
+  status)   systemctl status dms --no-pager ;;
+  logs)     journalctl -u dms -f ;;
+  *) echo "usage: dms selftest | dms run [--show] [--record] | dms drivers add|list|remove|test [name] | dms start|stop|enable|disable|status|logs"; exit 1 ;;
+esac

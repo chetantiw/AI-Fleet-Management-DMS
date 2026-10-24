@@ -1,0 +1,17 @@
+[Unit]
+Description=Driver Monitoring System
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=__USER__
+WorkingDirectory=__APP__/dms
+ExecStart=__VENV__/bin/python __APP__/dms/app.py --config __APP__/dms/config.json
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+# give the camera and AI HAT a moment after boot
+ExecStartPre=/bin/sleep 5
+
+[Install]
+WantedBy=multi-user.target

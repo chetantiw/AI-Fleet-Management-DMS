@@ -60,13 +60,20 @@ def ensure_models():
 # Detector (SCRFD)
 # ----------------------------------------------------------------------------
 class FaceDetector:
-    def __init__(self, path):
+    def __init__(self, path, size=None, score=None):
+        """size: square input side (640 default; 320 is ~4x faster and fine for a close cabin camera)."""
         import onnxruntime as ort
-        self.sess = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
+        so = ort.SessionOptions()
+        so.log_severity_level = 3          # the model declares 640x640 shapes; other sizes are fine
+        self.sess = ort.InferenceSession(path, so, providers=["CPUExecutionProvider"])
         self.inp = self.sess.get_inputs()[0].name
+        self.size = size or DET_SIZE
+        self.score = score
 
     def __call__(self, bgr):
         """Returns list of dicts {box, score, kps} in image pixels, largest face first."""
+        DET_SIZE = self.size
+        DET_SCORE = self.score if self.score is not None else globals()["DET_SCORE"]
         h, w = bgr.shape[:2]
         s = min(DET_SIZE / w, DET_SIZE / h)
         nw, nh = int(round(w * s)), int(round(h * s))

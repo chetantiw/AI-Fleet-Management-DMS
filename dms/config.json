@@ -1,0 +1,23 @@
+{
+  "camera": {
+    "source": "picamera",
+    "width": 1280,
+    "height": 960,
+    "fps": 15,
+    "rotate": 0,
+    "hflip": false,
+    "vflip": false
+  },
+  "models_dir": "models",
+  "hef": "/usr/share/hailo-models/yolov8s_h8l.hef",
+  "use_hailo": true,
+  "face_det_size": 320,
+  "gallery": "../data/gallery.npz",
+  "data_dir": "../data",
+  "web": {"enabled": true, "port": 8080},
+  "buzzer_gpio": null,
+  "recording": {"enabled": false, "fps": 10, "segment_minutes": 5, "max_gb": 20},
+  "mqtt": {"enabled": false, "host": "your-thingsboard-host", "port": 1883,
+           "username": "DEVICE_ACCESS_TOKEN", "topic": "v1/devices/me/telemetry"},
+  "engine": {}
+}

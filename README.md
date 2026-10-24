@@ -23,6 +23,24 @@ the hardware; every model is kept in ONNX / TFLite form so it can be compiled fo
 Sunglasses are detected and eye-based alerts pause while the eyes are hidden. Each new driver gets
 a fresh calibration (head position, normal eye openness, face size).
 
+## Raspberry Pi 5 live app (camera + AI HAT+)
+
+```bash
+git clone https://github.com/chetantiw/AI-Fleet-Management-DMS.git fleet-dms
+cd fleet-dms && bash pi/install.sh && sudo reboot
+dms selftest                    # camera, AI HAT, models, speed
+dms drivers add "Ramesh Kumar"  # enrol from the camera (driver in the seat)
+dms run                         # live; open http://<pi-address>:8080 on a phone
+dms enable                      # start automatically on every boot
+```
+
+Live app files: `dms/app.py` (main loop), `dms/perception.py` (per-frame measurements),
+`dms/hailo_objects.py` (phone/bottle detector on the AI HAT, YOLOv8s from `hailo-models`),
+`dms/sources.py` (Pi camera / webcam / video file), `dms/webview.py` (live view),
+`dms/drivers.py` (enrolment), `dms/selftest.py`, `dms/config.json`, `pi/install.sh`,
+`pi/dms.service`, `pi/dms` (short commands). Events: `data/events/YYYY-MM-DD.jsonl`,
+alert photos: `data/snapshots/`, optional recordings: `data/recordings/`.
+
 ## Quick start (recorded video)
 
 ```bash

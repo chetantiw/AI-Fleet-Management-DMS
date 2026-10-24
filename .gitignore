@@ -26,3 +26,5 @@ __pycache__/
 *.zip
 .DS_Store
 server/vehicles/
+dms/models
+data/

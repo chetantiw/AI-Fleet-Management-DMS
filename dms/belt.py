@@ -9,8 +9,12 @@ its middle. An unbuckled belt hanging beside the shoulder is off-centre and is i
 
 belt_score(gray, face_box) -> (score, angle_deg, offset_in_face_widths)
 """
+import warnings
+
 import cv2
 import numpy as np
+
+warnings.filterwarnings("ignore", message="Mean of empty slice")
 
 CFG = dict(
     angles=range(30, 76, 5),   # belt direction, degrees from horizontal, falling to the image right
