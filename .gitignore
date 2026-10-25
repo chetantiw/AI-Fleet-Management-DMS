@@ -28,3 +28,4 @@ __pycache__/
 server/vehicles/
 dms/models
 data/
+dms/config.local.json

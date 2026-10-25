@@ -39,9 +39,24 @@ ALERTS_BEEP = {"DROWSY_EYES_CLOSED": (0.6, 3), "FATIGUE_PERCLOS": (0.6, 2), "DIS
                "NO_SEATBELT": (0.3, 2), "UNKNOWN_DRIVER": (0.1, 1)}
 
 
+def _merge(a, b):
+    for k, v in b.items():
+        if isinstance(v, dict) and isinstance(a.get(k), dict):
+            _merge(a[k], v)
+        else:
+            a[k] = v
+    return a
+
+
 def load_config(path):
+    """config.json (shipped defaults) + config.local.json next to it (this vehicle's own settings,
+    never overwritten by `git pull`)."""
     with open(path) as fh:
         cfg = json.load(fh)
+    local = os.path.join(os.path.dirname(os.path.abspath(path)), "config.local.json")
+    if os.path.exists(local):
+        with open(local) as fh:
+            _merge(cfg, json.load(fh))
     base = os.path.dirname(os.path.abspath(path))
     for k in ("models_dir", "data_dir", "gallery"):
         if k in cfg and not os.path.isabs(cfg[k]):
