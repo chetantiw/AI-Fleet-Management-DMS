@@ -23,7 +23,7 @@ EXTRA=""
 case "$SYSNP" in 1.*) EXTRA="opencv-contrib-python<4.11";; esac
 "$VENV/bin/pip" install --upgrade pip
 # keep numpy at the system version so the system camera / AI HAT libraries keep working
-"$VENV/bin/pip" install "numpy==$SYSNP" "mediapipe==1.1.1" "onnxruntime>=1.17" "paho-mqtt>=2.0" $EXTRA
+"$VENV/bin/pip" install "numpy==$SYSNP" "mediapipe==1.1.1" "onnxruntime>=1.17" "paho-mqtt>=2.0" "pyserial>=3.5" $EXTRA
 
 say "3/6 Model files"
 bash "$APP/download_models.sh"
