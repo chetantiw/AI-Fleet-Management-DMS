@@ -37,12 +37,17 @@ Vehicles to create: **VEH-102** (add more only if Chetan names them).
    `git clone https://github.com/chetantiw/AI-Fleet-Management-DMS /opt/fleet-dms && cd /opt/fleet-dms`
    (or `git pull` if it is already there).
 
-3. **Run the installer** (ThingsBoard port from step 1 in `TB_URL`):
+3. **Run the installer** (ThingsBoard port from step 1 in `TB_URL`; if 9100 is taken set
+   `AUTH_PORT`; if vehicles must use another MQTT port than 1883 set `MQTT_PORT`, and `MQTT_TLS=true`
+   if that port is TLS):
    ```bash
    cd /opt/fleet-dms
-   sudo TB_URL=http://127.0.0.1:8080 TB_USER='<from Chetan>' TB_PASS='<from Chetan>' \
+   sudo TB_URL=http://127.0.0.1:8080 AUTH_PORT=9100 MQTT_PORT=1883 \
+        TB_USER='<from Chetan>' TB_PASS='<from Chetan>' \
         ./server/install_server.sh iot.mutechautomation.com VEH-102
    ```
+   Per-server settings are written to `server/mediamtx/.env` (git-ignored). Never edit tracked files
+   (`docker-compose.yml`, `mediamtx.yml`) for local ports; that breaks `git pull`.
    It starts MediaMTX + the viewer login check (`stream_auth.py`) with Docker, generates a video
    password per vehicle, creates the ThingsBoard items and writes
    `server/vehicles/VEH-102.device.json`. It prints an nginx block and a firewall line; it does not
@@ -71,6 +76,15 @@ Vehicles to create: **VEH-102** (add more only if Chetan names them).
      Raspberry Pi as `dms/device.json` in the repo checkout (the live app picks it up on restart).
      Its `gnss` entry is `{"type": "demo"}` (fake route); on a real vehicle set it to
      `{"type": "nmea", "port": "/dev/ttyUSB1", "baud": 9600}` for the GPS receiver, or `"none"`.
+
+## Updating later / adding vehicles
+```bash
+cd /opt/fleet-dms && git pull
+cd server/mediamtx && docker compose up -d        # picks up changes; settings stay in .env
+```
+Add a vehicle: re-run the installer with the same environment variables and the new id
+(`... install_server.sh iot.mutechautomation.com VEH-103`); existing passwords are kept.
+On srv1300859 use `AUTH_PORT=8081 MQTT_PORT=1884 MQTT_TLS=false`.
 
 ## Report to Chetan at the end
 A short summary: what was installed, ThingsBoard version, the nginx and firewall changes made

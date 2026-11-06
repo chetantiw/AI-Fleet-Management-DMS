@@ -51,7 +51,8 @@ cp vehicles.example.json vehicles.json      # "veh-102": "<publish password>", o
 docker compose up -d
 ```
 
-Firewall: open **1883/tcp** (MQTT, probably already open), **8554/tcp** (RTSP from vehicles),
+Per-server ports (stream_auth port, public name) live in `server/mediamtx/.env`, git-ignored; see
+`.env.example`. Firewall: open **1883/tcp** (or your MQTT port; installer `MQTT_PORT`), **8554/tcp** (RTSP from vehicles),
 **8889/tcp** (video player) and **8189/udp + 8189/tcp** (WebRTC media). In `mediamtx.yml` put the
 server's public name in `webrtcAdditionalHosts` if browsers reach it from outside the LAN.
 

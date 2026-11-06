@@ -4,13 +4,18 @@
 #   cp vehicles.example.json vehicles.json      # one line per vehicle: "veh-102": "<password>"
 #   docker compose up -d
 #
-# Host networking: WebRTC needs the real server address and UDP 8189, and stream_auth must reach
-# ThingsBoard on 127.0.0.1:8080. Change --tb below if ThingsBoard listens elsewhere.
+# Host networking: WebRTC needs the real server address and UDP 8189.
+# Settings for THIS server go in .env next to this file (git-ignored, so `git pull` never conflicts);
+# see .env.example. install_server.sh writes it.
 services:
   mediamtx:
     image: bluenviron/mediamtx:1.21.2
     restart: unless-stopped
     network_mode: host
+    environment:
+      # any mediamtx.yml setting can be overridden as MTX_<NAME>
+      MTX_AUTHHTTPADDRESS: http://127.0.0.1:${AUTH_PORT:-9100}/auth
+      MTX_WEBRTCADDITIONALHOSTS: ${PUBLIC_HOST:-}
     volumes:
       - ./mediamtx.yml:/mediamtx.yml:ro
       - ./recordings:/recordings
@@ -24,5 +29,5 @@ services:
     volumes:
       - ./stream_auth.py:/app/stream_auth.py:ro
       - ./vehicles.json:/app/vehicles.json:ro
-    command: ["python3", "stream_auth.py", "--tb", "http://127.0.0.1:8080", "--vehicles", "vehicles.json",
-              "--port", "9100"]
+    command: ["python3", "stream_auth.py", "--tb", "${TB_LOCAL_URL:-http://127.0.0.1:8080}",
+              "--vehicles", "vehicles.json", "--port", "${AUTH_PORT:-9100}"]

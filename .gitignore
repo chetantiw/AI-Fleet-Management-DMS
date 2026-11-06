@@ -16,6 +16,7 @@ dms/events/
 # device / server secrets and local state
 device.json
 vehicles.json
+server/mediamtx/.env
 *.db
 *.db-wal
 *.db-shm

@@ -3,6 +3,15 @@
 #
 #   sudo ./server/install_server.sh iot.mutechautomation.com VEH-102 [VEH-103 ...]
 #
+# Optional environment variables (defaults in brackets):
+#   TB_URL     ThingsBoard as seen from this server             [http://127.0.0.1:8080]
+#   AUTH_PORT  local port for the viewer login check            [9100]
+#   MQTT_PORT  ThingsBoard MQTT port vehicles connect to        [1883]
+#   MQTT_TLS   true if that port is MQTT over TLS               [false]
+#   TB_USER / TB_PASS  ThingsBoard tenant admin login (else asked)
+# Re-running is safe: existing vehicle passwords and settings are kept; the per-server settings go
+# to server/mediamtx/.env (git-ignored), so `git pull` never conflicts with them.
+#
 # 1. Media server (MediaMTX) + viewer login check, with Docker   -> server/mediamtx
 # 2. A random video password per vehicle                          -> server/mediamtx/vehicles.json
 # 3. nginx: /live/ on the ThingsBoard HTTPS site                  -> prints what to add
@@ -27,7 +36,12 @@ for veh in sys.argv[1:]:
 json.dump(v, open("vehicles.json", "w"), indent=1)
 EOF
 chmod 600 vehicles.json
-sed -i "s|^webrtcAdditionalHosts:.*|webrtcAdditionalHosts: [$DOMAIN]|" mediamtx.yml
+TBURL=${TB_URL:-http://127.0.0.1:8080}
+cat > .env <<ENV
+PUBLIC_HOST=$DOMAIN
+AUTH_PORT=${AUTH_PORT:-9100}
+TB_LOCAL_URL=$TBURL
+ENV
 docker compose up -d
 cd "$HERE"
 
@@ -37,8 +51,8 @@ echo "=== nginx: add this inside the 'server { listen 443 ssl; server_name $DOMA
 echo "=== then: sudo nginx -t && sudo systemctl reload nginx"
 sed -n '/^location/,$p' mediamtx/nginx-live.conf
 echo
-echo "=== firewall: open 1883/tcp (MQTT), 8554/tcp (video from vehicles), 8189/udp and 8189/tcp (WebRTC)"
-echo "    e.g.  sudo ufw allow 1883/tcp && sudo ufw allow 8554/tcp && sudo ufw allow 8189"
+echo "=== firewall: open ${MQTT_PORT:-1883}/tcp (MQTT), 8554/tcp (video from vehicles), 8189/udp and 8189/tcp (WebRTC)"
+echo "    e.g.  sudo ufw allow ${MQTT_PORT:-1883}/tcp && sudo ufw allow 8554/tcp && sudo ufw allow 8189"
 echo
 
 # ---- 4-5. ThingsBoard ----
@@ -48,7 +62,8 @@ TBUSER=${TB_USER:-}
 TBPASS=${TB_PASS:-}
 [ -n "$TBUSER" ] || read -rp "ThingsBoard tenant admin e-mail: " TBUSER
 [ -n "$TBPASS" ] || { read -rsp "Password: " TBPASS; echo; }
-TBURL=${TB_URL:-http://127.0.0.1:8080}
+MQTTPORT=${MQTT_PORT:-1883}
+MQTTTLS=${MQTT_TLS:-false}
 mkdir -p vehicles
 for VEH in "$@"; do
   path=$(echo "$VEH" | tr 'A-Z' 'a-z')
@@ -60,7 +75,7 @@ for VEH in "$@"; do
   cat > "vehicles/$VEH.device.json" <<JSON
 {
   "vehicle_id": "$VEH",
-  "thingsboard": {"host": "$DOMAIN", "port": 1883, "tls": false, "token": "$token"},
+  "thingsboard": {"host": "$DOMAIN", "port": $MQTTPORT, "tls": $MQTTTLS, "token": "$token"},
   "stream": {
     "path": "$path",
     "publish_url": "rtsp://$path:$pass@$DOMAIN:8554/$path",
