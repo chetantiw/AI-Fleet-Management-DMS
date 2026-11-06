@@ -84,7 +84,7 @@ cd server/mediamtx && docker compose up -d        # picks up changes; settings s
 ```
 Add a vehicle: re-run the installer with the same environment variables and the new id
 (`... install_server.sh iot.mutechautomation.com VEH-103`); existing passwords are kept.
-On srv1300859 use `AUTH_PORT=8081 MQTT_PORT=1884 MQTT_TLS=false`.
+On srv1300859 use `TB_URL=http://127.0.0.1:8081 AUTH_PORT=9100 MQTT_PORT=1884 MQTT_TLS=false`.
 
 ## Report to Chetan at the end
 A short summary: what was installed, ThingsBoard version, the nginx and firewall changes made
