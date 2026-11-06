@@ -43,8 +43,11 @@ echo
 
 # ---- 4-5. ThingsBoard ----
 python3 -c "import requests" 2>/dev/null || pip3 install requests
-read -rp "ThingsBoard tenant admin e-mail: " TBUSER
-read -rsp "Password: " TBPASS; echo
+# Login from TB_USER / TB_PASS if set (non-interactive runs), otherwise asked here.
+TBUSER=${TB_USER:-}
+TBPASS=${TB_PASS:-}
+[ -n "$TBUSER" ] || read -rp "ThingsBoard tenant admin e-mail: " TBUSER
+[ -n "$TBPASS" ] || { read -rsp "Password: " TBPASS; echo; }
 TBURL=${TB_URL:-http://127.0.0.1:8080}
 mkdir -p vehicles
 for VEH in "$@"; do

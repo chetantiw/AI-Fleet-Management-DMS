@@ -28,6 +28,8 @@ ready `device.json` per vehicle (it asks for the ThingsBoard tenant admin login)
 sudo ./server/install_server.sh iot.mutechautomation.com VEH-102 VEH-103
 ```
 
+Or have Claude on the server do it: give it `docs/SERVER_TASK_FOR_CLAUDE.md`.
+
 Step by step:
 
 On the ThingsBoard server:
