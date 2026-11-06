@@ -124,6 +124,10 @@ The rule chain turns each event with a severity into an alarm of that type (deta
 speed, count). A repeat of the same event updates the open alarm and increases its `count` until an
 operator clears it. Every event also stays in the time series (Events table, with snapshot).
 
+**Summary keys** (same message, for simple dashboards): `drowsy`, `distracted`, `phone_use`,
+`face_detected`, `camera_ok` (true/false) and `attention` (0–100, rough score: lower with tiredness,
+eyes closed, head turned or phone).
+
 **Client attributes:** `vehicle_id`, `fw_version`, `dms_models`, `stream_path`, `stream_active`.
 
 **Settings from the server** (shared attributes, change them on the device page in ThingsBoard;

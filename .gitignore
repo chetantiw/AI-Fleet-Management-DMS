@@ -32,3 +32,4 @@ data/
 dms/config.local.json
 server/demo/videos/
 server/demo/state/
+server/demo/.env

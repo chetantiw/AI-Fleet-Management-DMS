@@ -94,7 +94,14 @@ def localize(cfg):
         st["publish_url"] = re.sub(r"@[^:/]+", "@127.0.0.1", st["publish_url"], count=1)
 
 
-def play(agent, clip, prev_driver):
+def keep_streaming(agent):
+    st = agent.stream
+    if st is not None and st.status()["seconds_left"] < 120:
+        st.start(60)
+        agent.link.attributes({"stream_active": True})
+
+
+def play(agent, clip, prev_driver, always=False):
     cap = cv2.VideoCapture(clip["path"])
     fps = cap.get(cv2.CAP_PROP_FPS) or 10
     step = max(int(round(fps / 10)), 1)
@@ -121,6 +128,8 @@ def play(agent, clip, prev_driver):
                 evs.append(("DRIVER_CHANGED", clip["driver"]))
         while pending and pending[0][0] <= t:
             evs.append((pending.pop(0)[1], "recorded demo"))
+        if always and i % 100 == 0:
+            keep_streaming(agent)
         agent.frame(t0 + t, frame, evs, status_at(clip, t))
     cap.release()
     return clip["driver"]
@@ -134,6 +143,10 @@ def main():
     ap.add_argument("--local", action="store_true", help="ThingsBoard and media server on this machine")
     ap.add_argument("--once", action="store_true", help="play the list once instead of looping")
     ap.add_argument("--outbox", help="where to keep the offline buffer (default: from the config)")
+    ap.add_argument("--stream-always", action="store_true",
+                    help="keep the live video on all the time (demo on the server only: no SIM data)")
+    ap.add_argument("--no-gps", action="store_true",
+                    help="send no position (when something else already sends this bus's location)")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     clips = load_playlist(a.csv, a.videos)
@@ -142,6 +155,8 @@ def main():
         localize(cfg)
     if a.outbox:
         cfg["outbox"] = a.outbox
+    if a.no_gps:
+        cfg["gnss"] = {"type": "none"}
     agent = fleet_agent.Agent(cfg)
     agent.start()
     agent.link.attributes({"demo_mode": True,
@@ -150,7 +165,7 @@ def main():
     try:
         while True:
             for clip in clips:
-                driver = play(agent, clip, driver)
+                driver = play(agent, clip, driver, a.stream_always)
             if a.once:
                 break
     except KeyboardInterrupt:

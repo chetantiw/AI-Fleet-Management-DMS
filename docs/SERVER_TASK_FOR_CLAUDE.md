@@ -116,6 +116,69 @@ annotated video. It is marked `demo_mode = true` in its attributes and alerts sa
 
 The alert list it replays is `demo/v3_alerts_for_review.csv` (in git; alert names and times only).
 
+## Demo on an existing bus (GARIMA-BUS-01) and the "Bus Device Details" dashboard
+
+Chetan wants the demo on one of the existing Garima buses, shown on his own dashboards ("Garima
+School Transport Management System" and "Bus Device Details", sections "Live Streaming" and
+"Driver Monitoring"), instead of a separate VEH-DEMO. Use **GARIMA-BUS-01** unless he names another.
+
+Rules: export a backup of every dashboard, rule chain and device profile before you change it
+(`GET /api/dashboard/<id>` etc. → `/opt/fleet-dms/backups/<name>-<date>.json`), and show Chetan the
+change before saving. Do not change the other buses.
+
+1. **Look first and report:**
+   - GARIMA-BUS-01: its device profile, the rule chain that profile uses, its latest telemetry and
+     attributes, and whether something already sends its position/telemetry (simulator, gateway,
+     rule chain generator). If something sends latitude/longitude, the demo must run with `--no-gps`.
+   - "Bus Device Details": export it and list, for the **Live Streaming** and **Driver Monitoring**
+     widgets, which attributes/telemetry keys they read and how (widget settings and JS code).
+     The Live Streaming widget shows "No camera URL configured for this bus", so note the attribute
+     it expects.
+2. **Create the stream login and device file for the bus** (keeps its own profile; the script no
+   longer moves existing devices):
+   ```bash
+   sudo TB_URL=http://127.0.0.1:8081 AUTH_PORT=9100 MQTT_PORT=1884 MQTT_TLS=false \
+        TB_USER='<from Chetan>' TB_PASS='<from Chetan>' \
+        ./server/install_server.sh iot.mutechautomation.com GARIMA-BUS-01
+   ```
+   This adds `garima-bus-01` to `server/mediamtx/vehicles.json`, sets server attribute
+   `stream_view_url = https://iot.mutechautomation.com/live/garima-bus-01/` on the bus, adds the DMS
+   settings as shared attributes, and writes `server/vehicles/GARIMA-BUS-01.device.json` (with the
+   bus's existing access token). It does not change the bus's profile. Restart the auth service so
+   it sees the new path: `cd server/mediamtx && docker compose restart stream-auth`.
+3. **Live Streaming widget:** make it play `stream_view_url` + `?token=<the viewer's ThingsBoard
+   token>` in an `<iframe>` (the media server refuses viewers without a valid ThingsBoard token;
+   in widget JS: `localStorage.getItem('jwt_token')`). Simplest is to point the widget's camera-URL
+   attribute at that value or edit its HTML. A plain `<video src>` will not play WebRTC. Keep the
+   widget's look; only change where the video comes from.
+4. **Driver Monitoring widget:** make it read the DMS keys the demo (and later the real Pi) sends:
+   | Widget field | DMS telemetry key |
+   |---|---|
+   | Drowsiness | `drowsy` (true/false) |
+   | Distraction | `distracted` (true/false) |
+   | Phone use | `phone_use` (true/false) |
+   | Face detected | `face_detected` (true/false) |
+   | Camera online | `camera_ok` (true) and data younger than ~30 s |
+   | Driver attention % | `attention` (0–100, rough score) |
+   | DMS events | `event` (latest alert name), `event_details`, `event_image` (snapshot) |
+   | also available | `driver`, `driver_status`, `seatbelt` (on/off/unknown), `perclos`, `eyes`, `head` |
+   Prefer changing the widget's key names to these (keep a backup) rather than adding new keys.
+5. **Alarms (optional, ask Chetan):** DMS alerts become alarms only through the "DMS Events" rule
+   chain. If the bus's profile uses the Root Rule Chain, setting that profile's default rule chain
+   to "DMS Events" is additive (it raises alarms for messages with an `event` key and forwards
+   everything to Root unchanged), but it applies to all buses with that profile. If the profile
+   uses another chain, report that instead of changing it.
+6. **Run the demo on the bus** (videos in `server/demo/videos/` as in the VEH-DEMO section):
+   ```bash
+   cd /opt/fleet-dms/server/demo
+   printf 'DEMO_DEVICE=GARIMA-BUS-01\nDEMO_ARGS=--stream-always\n' > .env    # add --no-gps if step 1 found another position source
+   docker compose up -d --build
+   ```
+   `--stream-always` keeps the video on (no start button needed; it runs on the server, so no SIM
+   data). If VEH-DEMO was already running, this replaces it.
+7. **Verify with Chetan:** Bus Device Details for GARIMA-BUS-01 plays the video and Driver Monitoring
+   changes as the alerts happen; the bus still appears on the Garima map.
+
 ## Report to Chetan at the end
 A short summary: what was installed, ThingsBoard version, the nginx and firewall changes made
 (with backup file names), test results from step 6, anything you could not do, and the location

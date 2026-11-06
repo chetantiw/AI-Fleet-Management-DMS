@@ -45,6 +45,21 @@ DEFAULTS = dict(telemetry_interval_s=5.0, health_interval_s=60.0, stream_max_min
                 overspeed_kmh=60)
 
 
+def summary_keys(st):
+    """Simple yes/no keys + a 0-100 attention score for dashboards (rough heuristic, not a measure)."""
+    if not st:
+        return {}
+    face = bool(st.get("face"))
+    drowsy = face and (st.get("eyes") == "closed" or (st.get("perclos") or 0) >= 15)
+    distracted = face and st.get("head") == "turned"
+    phone = bool(st.get("phone"))
+    att = 0.0
+    if face:
+        att = 100 - 2 * (st.get("perclos") or 0) - 50 * (st.get("eyes") == "closed") - 30 * distracted - 30 * phone
+    return {"drowsy": drowsy, "distracted": distracted, "phone_use": phone, "face_detected": face,
+            "camera_ok": True, "attention": int(max(0, min(100, att)))}
+
+
 class Agent:
     def __init__(self, cfg):
         self.cfg = cfg
@@ -102,6 +117,7 @@ class Agent:
             v = dict(pos, **{k: status.get(k) for k in ("driver", "driver_status", "face", "head", "eyes",
                                                           "hand", "phone", "perclos", "seatbelt")
                              if status.get(k) is not None})
+            v.update(summary_keys(status))
             v["buffered"] = self.link.backlog
             self.link.telemetry(v, ts=t_wall)
         if t_wall - self.last_health >= self.s["health_interval_s"]:

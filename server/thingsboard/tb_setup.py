@@ -142,13 +142,17 @@ def setup_profile(tb, chain):
     return tb.post("/api/deviceProfile", prof)
 
 
-def setup_device(tb, profile, name, view_url, hls_url):
+def setup_device(tb, profile, name, view_url, hls_url, move_profile=False):
     dev = tb.get("/api/tenant/devices", deviceName=name)
     if dev is None:
         dev = tb.post("/api/device", {"name": name, "label": name, "deviceProfileId": profile["id"]})
     elif dev["deviceProfileId"]["id"] != profile["id"]["id"]:
-        dev["deviceProfileId"] = profile["id"]
-        dev = tb.post("/api/device", dev)
+        if move_profile:
+            dev["deviceProfileId"] = profile["id"]
+            dev = tb.post("/api/device", dev)
+        else:   # an existing device (e.g. one of your buses) keeps its own profile and rule chain
+            print(f"note: {name} keeps its own device profile (DMS alarms need the 'DMS Events' rule chain, "
+                  f"see docs); use --move-profile to switch it to '{PROFILE}'")
     did = dev["id"]["id"]
     shared = dict(SHARED_DEFAULTS)
     have = {a["key"] for a in tb.get(f"/api/plugins/telemetry/DEVICE/{did}/values/attributes/SHARED_SCOPE") or []}
@@ -424,13 +428,15 @@ def main():
     ap.add_argument("--stream-view", default="", help="WebRTC player URL of this vehicle on the media server")
     ap.add_argument("--stream-hls", default="", help="HLS player URL (optional)")
     ap.add_argument("--save-dashboard", help="also write the dashboard JSON to this file")
+    ap.add_argument("--move-profile", action="store_true",
+                    help="switch an EXISTING device to the DMS Vehicle profile (default: leave it)")
     a = ap.parse_args()
     tb = TB(a.url, a.user, a.password)
     chain = setup_rule_chain(tb)
     print("rule chain:", CHAIN)
     prof = setup_profile(tb, chain)
     print("device profile:", PROFILE)
-    dev, token = setup_device(tb, prof, a.vehicle, a.stream_view, a.stream_hls)
+    dev, token = setup_device(tb, prof, a.vehicle, a.stream_view, a.stream_hls, a.move_profile)
     print("device:", a.vehicle, dev["id"]["id"])
     dash = setup_dashboard(tb, dev)
     print("dashboard:", f"{a.url}/dashboards/{dash['id']['id']}")

@@ -68,5 +68,5 @@ pathDefaults:
   recordDeleteAfter: 7d
 
 paths:
-  "~^veh-[a-z0-9-]+$":
+  "~^[a-z0-9][a-z0-9-]*$":     # path = vehicle name in lower case, e.g. veh-102, garima-bus-01
     source: publisher

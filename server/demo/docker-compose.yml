@@ -4,6 +4,10 @@
 #   1. create the device:  sudo <same env as before> ./server/install_server.sh iot.mutechautomation.com VEH-DEMO
 #   2. put the annotated videos (v3_IMG_0107/0110/0112_annotated.mp4) in server/demo/videos/
 #   3. cd server/demo && docker compose up -d --build
+#
+# To feed one of your existing buses instead, set in server/demo/.env (git-ignored):
+#   DEMO_DEVICE=GARIMA-BUS-01        # device.json written by the installer for that bus
+#   DEMO_ARGS=--stream-always         # add --no-gps if something else already sends its position
 services:
   demo-vehicle:
     build: .
@@ -13,8 +17,10 @@ services:
       - ../../dms:/app/dms:ro
       - ../../demo:/app/demo:ro
       - ./videos:/videos:ro
-      - ../vehicles/VEH-DEMO.device.json:/app/device.json:ro
+      - ../vehicles/${DEMO_DEVICE:-VEH-DEMO}.device.json:/app/device.json:ro
       - ./state:/state
-    command: ["python3", "dms/demo_feed.py", "--config", "/app/device.json",
-              "--csv", "demo/v3_alerts_for_review.csv", "--videos", "/videos",
-              "--local", "--outbox", "/state/outbox.db"]
+    command: sh -c "exec python3 dms/demo_feed.py --config /app/device.json
+              --csv demo/v3_alerts_for_review.csv --videos /videos
+              --local --outbox /state/outbox.db $${DEMO_ARGS:-}"
+    environment:
+      DEMO_ARGS: ${DEMO_ARGS:-}

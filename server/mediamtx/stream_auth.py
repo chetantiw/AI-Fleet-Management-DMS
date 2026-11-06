@@ -78,7 +78,7 @@ class Auth:
         if action in ("read", "playback"):
             q = urllib.parse.parse_qs(req.get("query") or "")
             token = (q.get("token") or [""])[0] or req.get("token") or ""
-            return bool(token) and path.startswith("veh-") and self.viewer_ok(token, path)
+            return bool(token) and path in self.vehicles() and self.viewer_ok(token, path)
         return False
 
 
