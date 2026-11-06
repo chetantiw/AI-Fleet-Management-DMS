@@ -86,6 +86,36 @@ Add a vehicle: re-run the installer with the same environment variables and the 
 (`... install_server.sh iot.mutechautomation.com VEH-103`); existing passwords are kept.
 On srv1300859 use `TB_URL=http://127.0.0.1:8081 AUTH_PORT=9100 MQTT_PORT=1884 MQTT_TLS=false`.
 
+## Demo vehicle VEH-DEMO (recorded bus videos, until the real hardware runs)
+
+Adds a vehicle "VEH-DEMO" that replays the three processed bus videos in a loop on this server: its
+alerts become ThingsBoard alarms at the moment they happen in the video (with snapshots), the
+driver panel follows them, it drives a demo route around Indore, and "Start live video" shows the
+annotated video. It is marked `demo_mode = true` in its attributes and alerts say "recorded demo".
+
+1. `cd /opt/fleet-dms && git pull`
+2. Create the device (same settings as before; ask Chetan for the ThingsBoard login again):
+   ```bash
+   sudo TB_URL=http://127.0.0.1:8081 AUTH_PORT=9100 MQTT_PORT=1884 MQTT_TLS=false \
+        TB_USER='<from Chetan>' TB_PASS='<from Chetan>' \
+        ./server/install_server.sh iot.mutechautomation.com VEH-DEMO
+   ```
+   It must not change VEH-102 (passwords are kept). Skip the nginx/firewall output; that is done.
+3. Videos: put `v3_IMG_0107_annotated.mp4`, `v3_IMG_0110_annotated.mp4` and
+   `v3_IMG_0112_annotated.mp4` into `/opt/fleet-dms/server/demo/videos/`. They are in Chetan's
+   Google Drive folder (processed videos). Ask him to either copy them to the server (`scp`) or share
+   the folder "anyone with the link" temporarily, then
+   `pip install gdown && gdown --folder '<folder link>' -O /tmp/dmsvids` and move the three mp4 files.
+   They show drivers' faces: keep them only in that folder (git-ignored), and remind Chetan to turn
+   link sharing off again.
+4. `cd /opt/fleet-dms/server/demo && docker compose up -d --build`
+5. Verify: `docker compose logs --tail 20` shows "connected to ThingsBoard 127.0.0.1:1884" and
+   "playing ..."; on the Fleet DMS dashboard VEH-DEMO is online, events and alarms appear within a
+   minute; "Start live video" on its page plays (Chetan checks this in his browser).
+   Stop the demo any time with `docker compose down` in server/demo.
+
+The alert list it replays is `demo/v3_alerts_for_review.csv` (in git; alert names and times only).
+
 ## Report to Chetan at the end
 A short summary: what was installed, ThingsBoard version, the nginx and firewall changes made
 (with backup file names), test results from step 6, anything you could not do, and the location

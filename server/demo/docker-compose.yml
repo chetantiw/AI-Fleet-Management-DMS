@@ -1,0 +1,20 @@
+# Demo vehicle VEH-DEMO: replays the processed bus videos into ThingsBoard + live video, in a loop,
+# on the ThingsBoard server itself. See docs/demo_vehicle.md.
+#
+#   1. create the device:  sudo <same env as before> ./server/install_server.sh iot.mutechautomation.com VEH-DEMO
+#   2. put the annotated videos (v3_IMG_0107/0110/0112_annotated.mp4) in server/demo/videos/
+#   3. cd server/demo && docker compose up -d --build
+services:
+  demo-vehicle:
+    build: .
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ../../dms:/app/dms:ro
+      - ../../demo:/app/demo:ro
+      - ./videos:/videos:ro
+      - ../vehicles/VEH-DEMO.device.json:/app/device.json:ro
+      - ./state:/state
+    command: ["python3", "dms/demo_feed.py", "--config", "/app/device.json",
+              "--csv", "demo/v3_alerts_for_review.csv", "--videos", "/videos",
+              "--local", "--outbox", "/state/outbox.db"]

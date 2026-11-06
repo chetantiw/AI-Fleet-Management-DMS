@@ -30,3 +30,5 @@ server/vehicles/
 dms/models
 data/
 dms/config.local.json
+server/demo/videos/
+server/demo/state/

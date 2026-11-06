@@ -87,6 +87,13 @@ python3 fleet_agent.py --config device.json --video results/bus_annotated.mp4 --
 
 On the device the live DMS loop will call `Agent.frame(t, frame, events, status)` for every frame.
 
+### Demo vehicle (before hardware)
+
+`dms/demo_feed.py` replays processed recordings as vehicle VEH-DEMO: the annotated videos play in
+real time, each alert from the review CSV is sent at its moment (with a snapshot), the driver state
+follows the alerts, and live video shows the annotated view. Runs on the server with
+`server/demo/docker-compose.yml`; steps in `docs/SERVER_TASK_FOR_CLAUDE.md` ("Demo vehicle").
+
 ## 3. What is sent
 
 **Every 5 s** (setting `telemetry_interval_s`), and at once when the driver, seat belt or face
